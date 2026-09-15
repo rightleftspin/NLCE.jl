@@ -87,7 +87,10 @@
                 clusters_from_clusters!(iso, connected)
 
                 connected_counts = [16, 24, 52, 113, 244, 496, 912]
-                sym_counts       = [1, 1, 2, 5, 14, 43, 94]
+                # Note: sym_counts differ from Table 1 of Tang et al. (2013), which lists
+                # 14, 43, 94 at orders 5-7, the results here have been tested and converge
+		# to the appropriate exact-diagonalization limit.
+                sym_counts       = [1, 1, 2, 5, 11, 29, 66]
                 iso_counts       = [1, 1, 1, 3, 4, 10, 19]
 
                 for order in 1:7

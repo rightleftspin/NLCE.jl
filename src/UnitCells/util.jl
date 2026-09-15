@@ -40,3 +40,8 @@ function partition_labels(labels::AbstractVector{<:Int}, exp_basis::AbstractVect
         partitioned_labels
 end
 
+
+function is_strong_tiling(unit_cell::ExpansionUnitCell)
+        all_labels = collect(Iterators.flatten(unit_cell.translation_labels))
+        length(all_labels) == length(unique(all_labels))
+end

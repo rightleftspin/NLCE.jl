@@ -4,7 +4,7 @@
 Abstract base type for an infinite lattice used to enumerate clusters.
 
 Subtypes must implement all methods of `AbstractLattice`, plus:
-- `n_unique_sites(lattice)` — number of translationally-inequivalent sites in the lattice
+- `n_unique_sites(lattice)` - number of translationally-inequivalent sites in the lattice
 """
 abstract type AbstractInfiniteLattice <: AbstractLattice end
 
@@ -15,8 +15,8 @@ Abstract base type for lattices where each expansion vertex represents a cluster
 physical sites (a unit cell), rather than a single site.
 
 Subtypes must implement all methods of `AbstractInfiniteLattice`, plus:
-- `n_site_colors(lattice)` — number of distinct site colors in the lattice 
-- `connections(lattice)` — mapping from expansion vertices to their constituent lattice vertices
+- `n_site_colors(lattice)` - number of distinct site colors in the lattice 
+- `connections(lattice)` - mapping from expansion vertices to their constituent lattice vertices
 """
 abstract type AbstractClusterExpansionLattice <: AbstractInfiniteLattice end
 
@@ -33,7 +33,6 @@ get_site_colors(lattice::AbstractClusterExpansionLattice) = lattice.site_colors
 connections(lattice::AbstractClusterExpansionLattice) = lattice.connections
 bond_matrix(lattice::AbstractClusterExpansionLattice) = lattice.adj_matrix
 
-include("util.jl")
 include("SiteExpansionLattices.jl")
 include("StrongClusterExpansionLattices.jl")
 include("WeakClusterExpansionLattices.jl")

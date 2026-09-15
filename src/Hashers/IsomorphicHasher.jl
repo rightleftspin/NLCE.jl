@@ -10,15 +10,16 @@ struct IsomorphicHasher{C<:Union{<:AbstractConnections,Nothing}} <: AbstractHash
         is_weighted::Bool
 end
 
-function IsomorphicHasher(lattice::AbstractInfiniteLattice, connections::Union{<:AbstractConnections,Nothing})
+function IsomorphicHasher(lattice::AbstractLattice, connections::Union{<:AbstractConnections,Nothing})
         hashing_matrix = bond_matrix(lattice)
         labels = get_site_colors(lattice)
         is_weighted = length(unique(hashing_matrix)) > 2
         IsomorphicHasher(hashing_matrix, connections, labels, is_weighted)
 end
 
-IsomorphicHasher(lattice::AbstractInfiniteLattice) = IsomorphicHasher(lattice, nothing)
+IsomorphicHasher(lattice::AbstractLattice) = IsomorphicHasher(lattice, nothing)
 IsomorphicHasher(lattice::AbstractClusterExpansionLattice) = IsomorphicHasher(lattice, connections(lattice))
+IsomorphicHasher(lattice::AbstractFiniteClusterExpansionLattice) = IsomorphicHasher(lattice, connections(lattice))
 
 n_unique_sites(h::IsomorphicHasher) = length(unique(h.labels))
 
@@ -41,13 +42,27 @@ function ghash(h::IsomorphicHasher{WeakClusterConnections}, expansion_vertices::
 end
 
 function ghash(h::IsomorphicHasher, lattice_vertices::LatticeVertices)
+        idx = collect(lattice_vertices)
+        hm = @view h.hashing_matrix[idx, idx]
+        lbls = @view h.labels[idx]
         fh, _ = if h.is_weighted
-                weighted_iso_hash(h.hashing_matrix[lattice_vertices, lattice_vertices], h.labels[lattice_vertices])
+                weighted_iso_hash(hm, lbls)
         else
-                unweighted_iso_hash(h.hashing_matrix[lattice_vertices, lattice_vertices], h.labels[lattice_vertices])
+                unweighted_iso_hash(hm, lbls)
         end
 
         fh
+end
+
+function ghash_with_permutation(h::IsomorphicHasher, lattice_vertices::LatticeVertices)
+        idx = collect(lattice_vertices)
+        hm = @view h.hashing_matrix[idx, idx]
+        lbls = @view h.labels[idx]
+        if h.is_weighted
+                weighted_iso_hash(hm, lbls)
+        else
+                unweighted_iso_hash(hm, lbls)
+        end
 end
 
 """

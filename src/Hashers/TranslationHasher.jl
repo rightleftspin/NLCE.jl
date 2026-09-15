@@ -9,15 +9,16 @@ struct TranslationHasher{C<:Union{<:AbstractConnections,Nothing}} <: AbstractHas
         n_unique_sites::Int
 end
 
-function TranslationHasher(lattice::AbstractInfiniteLattice, connections::Union{<:AbstractConnections,Nothing})
+function TranslationHasher(lattice::AbstractLattice, connections::Union{<:AbstractConnections,Nothing})
         pwd_matrix = pairwise_direction(get_coordinates(lattice))
         hashing_matrix, max_dir = unique_direction_indices(pwd_matrix, bond_matrix(lattice))
         diag_matrix = diagm(get_labels(lattice) .+ max_dir)
         TranslationHasher(2 .^ (hashing_matrix + diag_matrix), connections, n_unique_sites(lattice))
 end
 
-TranslationHasher(lattice::AbstractInfiniteLattice) = TranslationHasher(lattice, nothing)
+TranslationHasher(lattice::AbstractLattice) = TranslationHasher(lattice, nothing)
 TranslationHasher(lattice::AbstractClusterExpansionLattice) = TranslationHasher(lattice, connections(lattice))
+TranslationHasher(lattice::AbstractFiniteClusterExpansionLattice) = TranslationHasher(lattice, connections(lattice))
 
 n_unique_sites(h::TranslationHasher) = h.n_unique_sites
 

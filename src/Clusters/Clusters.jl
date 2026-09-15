@@ -1,13 +1,13 @@
 """
     AbstractCluster
 
-Abstract base type for a single cluster — a connected subgraph of the lattice with an
+Abstract base type for a single cluster - a connected subgraph of the lattice with an
 associated lattice coefficient used in the NLCE summation.
 
 Subtypes must implement:
-- `Base.length(c)` — number of sites (vertices) in the cluster
-- `Base.hash(c, h)` — the cluster's graph hash (`ghash`)
-- `lattice_constant` — the cluster's lattice constant
+- `Base.length(c)` - number of sites (vertices) in the cluster
+- `Base.hash(c, h)` - the cluster's graph hash (`ghash`)
+- `lattice_constant` - the cluster's lattice constant
 """
 abstract type AbstractCluster end
 
@@ -18,13 +18,13 @@ Abstract base type for a collection of unique clusters sharing a common hasher.
 Clusters that are equivalent under the hasher's symmetry are merged
 
 Subtypes must implement:
-- `Base.length(cluster_set)` — number of stored clusters
-- `Base.in(c, cluster_set)` — membership test
-- `Base.iterate(cluster_set)` / `Base.iterate(cluster_set, state)` — iteration over clusters
-- `Base.push!(cluster_set, c)` — add a cluster
-- `Base.pop!(cluster_set, c)` — remove and return a cluster
-- `Base.get(cluster_set, ghash, default)` — look up a stored cluster by its graph hash
-- `ghash(cluster_set, c)` / `ghash(cluster_set, vertices)` — delegate to the hasher
+- `Base.length(cluster_set)` - number of stored clusters
+- `Base.in(c, cluster_set)` - membership test
+- `Base.iterate(cluster_set)` / `Base.iterate(cluster_set, state)` - iteration over clusters
+- `Base.push!(cluster_set, c)` - add a cluster
+- `Base.pop!(cluster_set, c)` - remove and return a cluster
+- `Base.get(cluster_set, ghash, default)` - look up a stored cluster by its graph hash
+- `ghash(cluster_set, c)` / `ghash(cluster_set, vertices)` - delegate to the hasher
 """
 abstract type AbstractClusterSet{C<:AbstractCluster,H<:AbstractHasher} end
 

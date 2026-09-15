@@ -9,7 +9,7 @@ struct Expansion <: AbstractExpansion
         order_offset::Int
 end
 
-function Expansion(clusters::AbstractClusterSet, lattice::SiteExpansionLattice)
+function _build_site_expansion(clusters::AbstractClusterSet, lattice::AbstractLattice)
         expansion_clusters = Dict{UInt,ExpansionCluster}()
         sizehint!(expansion_clusters, length(clusters))
         order_ids = [Vector{UInt}() for _ in 1:max_order(lattice)]
@@ -27,15 +27,13 @@ function Expansion(clusters::AbstractClusterSet, lattice::SiteExpansionLattice)
         Expansion(expansion_clusters, order_ids, 0)
 end
 
-function Expansion(clusters::AbstractClusterSet, lattice::AbstractClusterExpansionLattice)
+function _build_cluster_expansion(clusters::AbstractClusterSet, lattice::AbstractLattice)
         expansion_clusters = Dict{UInt,ExpansionCluster}()
         sizehint!(expansion_clusters, length(clusters) + n_unique_sites(clusters))
         order_ids = [Vector{UInt}() for _ in 1:(max_order(lattice)+1)]
 
-        # Adds Single Sites to the cluster expansion
         lv::Int = 1
         n_single_site_clusters = n_unique_sites(clusters)
-        # Need to consider the number of distinct sites under the hasher, not the number of distinct sites total.
         n_total_sites = length(get_labels(lattice))
         while length(order_ids[1]) < n_single_site_clusters && lv <= n_total_sites
 
@@ -62,10 +60,32 @@ function Expansion(clusters::AbstractClusterSet, lattice::AbstractClusterExpansi
         Expansion(expansion_clusters, order_ids, 1)
 end
 
+function Expansion(clusters::AbstractClusterSet, lattice::SiteExpansionLattice)
+        _build_site_expansion(clusters, lattice)
+end
+
+function Expansion(clusters::AbstractClusterSet, lattice::FiniteLattice)
+        _build_site_expansion(clusters, lattice)
+end
+
+function Expansion(clusters::AbstractClusterSet, lattice::AbstractClusterExpansionLattice)
+        _build_cluster_expansion(clusters, lattice)
+end
+
+function Expansion(clusters::AbstractClusterSet, lattice::AbstractFiniteClusterExpansionLattice)
+        _build_cluster_expansion(clusters, lattice)
+end
+
 Base.getindex(e::Expansion, cluster_hash::UInt) = e.expansion_clusters[cluster_hash]
 each_order(e::Expansion, max_order::Int) = @view e.order_ids[1:max_order]
 order_offset(e::Expansion) = e.order_offset
 
+"""
+    weights(e::Expansion, order::Int) -> Dict{UInt, Float64}
+
+Return the NLCE weights at the given `order` for all clusters.
+Call `summation!` first to populate the underlying weights.
+"""
 function weights(e::Expansion, order::Int)
         result = Dict{UInt,Float64}()
         for ch in e.order_ids[order]
@@ -82,16 +102,16 @@ end
     write_to_json(expansion, lattice, filepath)
 
 Serialize an `Expansion` and its associated `lattice` geometry to a JSON file at
-`filepath`.  The file contains a JSON array — one object per cluster — with the
+`filepath`.  The file contains a JSON array - one object per cluster - with the
 following fields:
 
-- `cluster_hash`   — unique cluster identifier (string representation of UInt64)
-- `order`          — 1-based order index into the expansion's `order_ids`
-- `n_sites`        — number of sites in the cluster
-- `coordinates`    — list of Cartesian coordinate vectors (one per site)
-- `site_colors`    — list of integer site-color labels (one per site)
-- `bonds`          — edge list `[i, j, weight]` using local 1-based indices
-- `weights`        — vector of weights per order for the cluster
+- `cluster_hash`   - unique cluster identifier (string representation of UInt64)
+- `order`          - 1-based order index into the expansion's `order_ids`
+- `n_sites`        - number of sites in the cluster
+- `coordinates`    - list of Cartesian coordinate vectors (one per site)
+- `site_colors`    - list of integer site-color labels (one per site)
+- `bonds`          - edge list `[i, j, weight]` using local 1-based indices
+- `weights`        - vector of weights per order for the cluster
 """
 function write_to_json(e::Expansion, lattice::AbstractLattice, filepath::String)
         all_coords = get_coordinates(lattice)
@@ -126,6 +146,79 @@ function write_to_json(e::Expansion, lattice::AbstractLattice, filepath::String)
 
         open(filepath, "w") do io
                 JSON.print(io, clusters_data, 2)
+        end
+end
+
+
+"""
+    write_to_json(iso_expansion, iso_set, sym_expansion, sym_set,  lattice, filepath)
+
+Serialize an `Expansion` and its associated `lattice` geometry to a JSON file at
+`filepath`. The file contains a similar output to the original write_to_json function,
+but with the addition of relating multiple symmetrically distinct clusters to their
+isomorphic equivalent.
+"""
+function write_to_json(iso_expansion::Expansion, iso_set::ClusterSet{Ci,IsomorphicHasher},
+        sym_expansion::Expansion, sym_set::ClusterSet{Cs,SymmetricHasher},
+        lattice::AbstractLattice, filepath::String) where {Ci,Cs}
+
+        iso_hasher = iso_set.hasher
+        all_coords = get_coordinates(lattice)
+        all_colors = get_site_colors(lattice)
+        adj = bond_matrix(lattice)
+        iso_weights = [weights(iso_expansion, i) for i in 1:length(iso_expansion.order_ids)]
+        sym_weights = [weights(sym_expansion, i) for i in 1:length(sym_expansion.order_ids)]
+
+        entries = Dict{UInt,Dict{String,Any}}()
+
+        for (order_idx, cluster_hashes) in enumerate(iso_expansion.order_ids)
+                for cluster_hash in cluster_hashes
+                        cluster = iso_expansion.expansion_clusters[cluster_hash]
+                        vertices = cluster.vertices
+                        n = length(vertices)
+
+                        _, perm = ghash_with_permutation(iso_hasher, vertices)
+                        order = sortperm(collect(perm))
+
+                        sub_adj = adj[vertices, vertices]
+                        sub_colors = collect(all_colors[vertices])
+                        canonical_adj = sub_adj[order, order]
+                        canonical_colors = sub_colors[order]
+
+                        canonical_bonds = [[b[1], b[2], b[3]] for b in adj_mat_to_edge_list(canonical_adj)]
+
+                        entries[cluster_hash] = Dict{String,Any}(
+                                "cluster_hash" => string(cluster_hash),
+                                "order" => order_idx,
+                                "n_sites" => n,
+                                "canonical_site_colors" => canonical_colors,
+                                "canonical_bonds" => canonical_bonds,
+                                "weights" => [get(d, cluster_hash, 0.0) for d in iso_weights],
+                                "related_symmetric" => Vector{Dict{String,Any}}()
+                        )
+                end
+        end
+
+        for cluster_hashes in sym_expansion.order_ids
+                for cluster_hash in cluster_hashes
+                        cluster = sym_expansion.expansion_clusters[cluster_hash]
+                        vertices = cluster.vertices
+
+                        iso_hash, perm = ghash_with_permutation(iso_hasher, vertices)
+                        haskey(entries, iso_hash) || error("Symmetric cluster $(cluster_hash) has no related isomorphic cluster (iso hash $(iso_hash)); both expansions must be built over the same lattice.")
+
+                        order = sortperm(collect(perm))
+                        permuted_vertices = collect(vertices)[order]
+                        push!(entries[iso_hash]["related_symmetric"], Dict{String,Any}(
+                                "cluster_hash" => string(cluster_hash),
+                                "permuted_coordinates" => [collect(col) for col in eachcol(all_coords[:, permuted_vertices])],
+                                "weights" => [get(d, cluster_hash, 0.0) for d in sym_weights]
+                        ))
+                end
+        end
+
+        open(filepath, "w") do io
+                JSON.print(io, collect(values(entries)), 2)
         end
 end
 

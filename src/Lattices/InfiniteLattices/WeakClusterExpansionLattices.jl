@@ -21,8 +21,9 @@ end
 
 function WeakClusterExpansionLattice(max_order::Int, expansion_unit_cell::ExpansionUnitCell)
         @assert max_order > 0 "max_order must be a positive integer"
+        @assert !is_strong_tiling(expansion_unit_cell) "Strong tiling - use StrongClusterExpansionLattice"
 
-        expansion_coordinates = generate_coordinates(max_order, length(basis_size(expansion_unit_cell)), dimension(expansion_unit_cell))
+        expansion_coordinates = generate_coordinates(ntuple(_ -> max_order, dimension(expansion_unit_cell)), length(basis_size(expansion_unit_cell)))
         neighbor_list = generate_neighbor_list(expansion_coordinates, expansion_unit_cell)
         center_vertices = ExpansionVertices(find_centers(expansion_coordinates))
 

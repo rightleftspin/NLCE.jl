@@ -12,6 +12,6 @@ Return a plottable image of the unit cell's sites and bonds for visualization.
 """
 function image_unit_cell end
 
-include("util.jl")
 include("UnitCell.jl")
 include("ExpansionUnitCell.jl")
+include("util.jl")

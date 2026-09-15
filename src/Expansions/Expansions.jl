@@ -4,8 +4,8 @@
 Abstract base type for an expansion cluster. Stores the subgraph information for a cluster, along with necessary information to write the cluster to disk.
 
 Subtypes must implement:
-- `subgraphs(cluster)` — subgraph hashes of each subgraph within the cluster
-- `subtract_subcluster!(cluster, subcluster)` — subtract the weight (W_p(c)) of the given subcluster from the corresponding cluster 
+- `subgraphs(cluster)` - subgraph hashes of each subgraph within the cluster
+- `subtract_subcluster!(cluster, subcluster)` - subtract the weight (W_p(c)) of the given subcluster from the corresponding cluster 
 """
 abstract type AbstractExpansionCluster end
 
@@ -20,12 +20,13 @@ Abstract base type for an NLCE expansion. Stores the subgraph relationships betw
 clusters and the weight matrix that `summation!` populates.
 
 Subtypes must implement:
-- `Base.getindex(e, cluster_hash)` — get the cluster corresponding to the `cluster_hash`
-- `each_order(e, max_order)` — vector of clusters at each order up till `max_order`
+- `Base.getindex(e, cluster_hash)` - get the cluster corresponding to the `cluster_hash`
+- `each_order(e, max_order)` - vector of clusters at each order up till `max_order`
 """
 abstract type AbstractExpansion end
 
 Base.getindex(e::AbstractExpansion, cluster_hash::UInt) = _NI("getindex")
+
 each_order(e::AbstractExpansion, max_order::Int) = _NI("each_order")
 order_offset(e::AbstractExpansion) = _NI("order_offset")
 _expansion_table_data(e::AbstractExpansion, cluster_sets::Vector{<:AbstractClusterSet}, max_order::Int) = _NI("_expansion_table_data")
@@ -83,7 +84,7 @@ Prints an HTML table akin to those found in scientific papers that utilize NLCE.
 """
 function print_html_table(io::IO, e::AbstractExpansion, cluster_sets::Vector{<:AbstractClusterSet}, max_order::Int)
         data, cluster_set_labels = _expansion_table_data(e, cluster_sets, max_order)
-        column_labels = [vcat(["Order"], cluster_set_labels, ["∑ L(c)", "∑ |subgraphs|", "∑ F(c)"])]
+        column_labels = [vcat(["Order"], cluster_set_labels, ["sum L(c)", "sum |subgraphs|", "sum F(c)"])]
         pretty_table_html_backend(io, data; column_labels=column_labels)
 end
 
@@ -94,7 +95,7 @@ Prints an ASCII table akin to those found in scientific papers that utilize NLCE
 """
 function print_ascii_table(io::IO, e::AbstractExpansion, cluster_sets::Vector{<:AbstractClusterSet}, max_order::Int)
         data, cluster_set_labels = _expansion_table_data(e, cluster_sets, max_order)
-        column_labels = [vcat(["Order"], cluster_set_labels, ["∑ L(c)", "∑ |subgraphs|", "∑ F(c)"])]
+        column_labels = [vcat(["Order"], cluster_set_labels, ["sum L(c)", "sum |subgraphs|", "sum F(c)"])]
         pretty_table(io, data; column_labels=column_labels)
 end
 

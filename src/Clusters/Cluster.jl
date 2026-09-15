@@ -4,7 +4,7 @@ struct Cluster{V<:AbstractVertices} <: AbstractCluster
         ghash::UInt64
 end
 
-function Cluster(vertices::AbstractVertices, cluster_set::AbstractClusterSet, lattice::AbstractInfiniteLattice)
+function Cluster(vertices::AbstractVertices, cluster_set::AbstractClusterSet, lattice::AbstractLattice)
         Cluster(vertices, 1 / n_unique_sites(lattice), ghash(cluster_set, vertices))
 end
 

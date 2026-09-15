@@ -19,12 +19,14 @@ end
 function get_permutations(coords::Matrix{Float64}, syms::Vector{Matrix{Float64}})
         n_sites = size(coords, 2)
 
-        coord_index = Dict(round.(coords[:, i], digits=6) => i for i in 1:n_sites)
+        # Center coordinates for symmetry operations
+        centered = coords .- sum(coords, dims=2) ./ n_sites
+        coord_index = Dict(round.(centered[:, i], digits=6) => i for i in 1:n_sites)
 
         permutations = Vector{Vector{Int64}}()
         for sym in syms
                 perm = zeros(Int64, n_sites)
-                transformed = sym * coords
+                transformed = sym * centered
                 for i in 1:n_sites
                         j = get(coord_index, round.(transformed[:, i], digits=6), nothing)
                         !isnothing(j) && (perm[i] = j)

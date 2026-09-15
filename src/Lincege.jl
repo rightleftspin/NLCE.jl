@@ -19,15 +19,14 @@ using NautyGraphs
 using JSON
 using PrettyTables
 
-# Some limited utility functions for the rest of the algorithm
-include("util.jl")
-
 # Basic not-implemented functionality, taken from Graphs.jl
 include("NI.jl")
 
 # All the necessary code for constructing an Expansion
 include("Vertices/Vertices.jl")
 include("UnitCells/UnitCells.jl")
+# Utility helpers and example unit cells
+include("util.jl")
 include("Lattices/Lattices.jl")
 include("Hashers/Hashers.jl")
 include("Clusters/Clusters.jl")
@@ -42,13 +41,14 @@ export AbstractVertices, LatticeVertices, ExpansionVertices
 export Bond, UnitCell, ExpansionBond, ExpansionUnitCell, image_unit_cell
 
 # Lattices
-export SiteExpansionLattice, StrongClusterExpansionLattice, WeakClusterExpansionLattice
+export SiteExpansionLattice, StrongClusterExpansionLattice, WeakClusterExpansionLattice,
+        FiniteLattice, FiniteStrongClusterExpansionLattice, FiniteWeakClusterExpansionLattice
 
 # Hashers
-export TranslationHasher, IsomorphicHasher, SymmetricHasher
+export TranslationHasher, IsomorphicHasher, SymmetricHasher, ConnectedHasher
 
 # Clusters
-export TranslationClusterSet, IsomorphicClusterSet, SymmetricClusterSet,
+export TranslationClusterSet, IsomorphicClusterSet, SymmetricClusterSet, ConnectedClusterSet,
         clusters_from_lattice!, clusters_from_clusters!
 
 # Expansions

@@ -27,7 +27,7 @@ end
 
 Generates all clusters from an infinite lattice up till the given max_order, populates clusters with all the corresponding clusters reduced by the hashing function
 """
-function clusters_from_lattice!(clusters::AbstractClusterSet{C,H}, lattice::AbstractInfiniteLattice; spawn_depth::Int=3) where {C<:AbstractCluster,H}
+function clusters_from_lattice!(clusters::AbstractClusterSet{C,H}, lattice::AbstractLattice; spawn_depth::Int=3) where {C<:AbstractCluster,H}
         max_depth = max_order(lattice)
         center_vertices = centers(lattice)
         roots = [Cluster(typeof(center_vertices)(center), clusters, lattice) for center in center_vertices]
@@ -58,22 +58,20 @@ function clusters_from_lattice!(clusters::AbstractClusterSet{C,H}, lattice::Abst
                                 dfs(Cluster(union(cluster.vertices, typeof(center_vertices)(v)), clusters, lattice), depth + 1)
                         end
                 else
-                        tasks = Task[]
-                        first = true
-                        for v in neighbors(lattice, cluster.vertices)
-                                neighbor_cluster = Cluster(union(cluster.vertices, typeof(center_vertices)(v)), clusters, lattice)
+                        @sync begin
+                                first = true
+                                for v in neighbors(lattice, cluster.vertices)
+                                        neighbor_cluster = Cluster(union(cluster.vertices, typeof(center_vertices)(v)), clusters, lattice)
 
-                                if first
-                                        # Run the first neighbor inline to avoid unnecessary task allocation,
-                                        # then spawn the remaining neighbors concurrently.
-                                        dfs(neighbor_cluster, depth + 1)
-                                        first = false
-                                else
-                                        push!(tasks, @spawn dfs(neighbor_cluster, depth + 1))
+                                        if first
+                                                # Run the first neighbor inline to avoid unnecessary task allocation,
+                                                # then spawn the remaining neighbors concurrently.
+                                                dfs(neighbor_cluster, depth + 1)
+                                                first = false
+                                        else
+                                                @spawn dfs(neighbor_cluster, depth + 1)
+                                        end
                                 end
-                        end
-                        for t in tasks
-                                fetch(t)
                         end
                 end
         end

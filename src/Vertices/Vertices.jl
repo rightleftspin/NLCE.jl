@@ -4,14 +4,14 @@
 Abstract base type for a set of vertices of element type `V`.
 
 Subtypes must implement:
-- `vertices(vertex_set)` — return the underlying iterable of vertex indices
-- `Base.collect(vertex_set)` — return a sorted `Vector{V}`
-- `Base.sort(vertex_set)` — return a sorted copy
-- `Base.intersect(vertex_set1, vertex_set2)` — set intersection
-- `Base.setdiff(vertex_set1, vertex_set2)` — set difference
-- `Base.union(vertex_set1, vertex_set2)` — set union (two-argument form)
-- `Base.in(v, vertex_set)` — membership test
-- `Base.eltype(vertex_set)` — element type `V`
+- `vertices(vertex_set)` - return the underlying iterable of vertex indices
+- `Base.collect(vertex_set)` - return a sorted `Vector{V}`
+- `Base.sort(vertex_set)` - return a sorted copy
+- `Base.intersect(vertex_set1, vertex_set2)` - set intersection
+- `Base.setdiff(vertex_set1, vertex_set2)` - set difference
+- `Base.union(vertex_set1, vertex_set2)` - set union (two-argument form)
+- `Base.in(v, vertex_set)` - membership test
+- `Base.eltype(vertex_set)` - element type `V`
 """
 abstract type AbstractVertices{V} end
 

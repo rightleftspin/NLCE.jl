@@ -1,24 +1,31 @@
-function generate_cartesian_coordinates(dimension::Int, half_side_length::Int)
-        # Forces the lattice to have a strict center point
-        r = -half_side_length:half_side_length
-        grid = Iterators.product(fill(r, dimension)...)
-        hcat([collect(t) for t in grid]...)
+function generate_coordinates(dim_specs::NTuple{N,Union{Int,UnitRange{Int}}}, num_basis_elements::Int) where {N}
+        ranges = [s isa Int ? (-s:s) : s for s in dim_specs]
+        primitive = hcat([collect(t) for t in Iterators.product(ranges...)]...)
+        hcat([vcat(primitive, fill(i, 1, size(primitive, 2))) for i in 1:num_basis_elements]...)
 end
 
-function generate_coordinates(max_order::Int, num_basis_elements::Int, dimension::Int)
-        primitive_coordinates = generate_cartesian_coordinates(dimension, max_order)
+generate_coordinates(max_order::Int, num_basis_elements::Int, dimension::Int) =
+        generate_coordinates(ntuple(_ -> max_order, dimension), num_basis_elements)
 
-        hcat([vcat(primitive_coordinates, repeat([i], size(primitive_coordinates, 2))') for i in 1:num_basis_elements]...)
-end
-
-function build_lattice_coordinates(max_order::Int, expansion_unit_cell::ExpansionUnitCell)
+function build_lattice_coordinates(max_order::Int, expansion_unit_cell::ExpansionUnitCell;
+        coord_gen=(specs, n) -> generate_coordinates(specs, n))
         d = dimension(expansion_unit_cell)
         blocks = Matrix{Int}[]
         for i in 1:length(basis_size(expansion_unit_cell))
-                coords = generate_coordinates(max_order, basis_size(expansion_unit_cell)[i], d)
+                coords = coord_gen(ntuple(_ -> max_order, d), basis_size(expansion_unit_cell)[i])
                 push!(blocks, vcat(coords[1:d, :], ones(Int, size(coords, 2))' * i, coords[end, :]'))
         end
         hcat(blocks...)
+end
+
+
+function generate_finite_coordinates(dims::NTuple{N,Int}, num_basis::Int) where {N}
+        generate_coordinates(map(d -> 0:d-1, dims), num_basis)
+end
+
+function build_lattice_coordinates_finite(dims::NTuple{N,Int}, expansion_unit_cell::ExpansionUnitCell) where {N}
+        build_lattice_coordinates(0, expansion_unit_cell;
+                coord_gen=(_, n) -> generate_finite_coordinates(dims, n))
 end
 
 function generate_coord_index(coordinates::Matrix{Int})
@@ -37,11 +44,11 @@ function generate_coord_index(coordinates::Matrix{Float64})
         coord_index
 end
 
-function _fill_adj_matrix!(adj_matrix, coordinates, coord_index, bonds, site_matcher)
+function _fill_adj_matrix!(adj_matrix, coordinates, coord_index, bonds, site_matcher, neighbor_fn=neighbor_site)
         for (index, col) in enumerate(eachcol(coordinates))
                 for bond in bonds
                         if site_matcher(bond, col)
-                                ni = get(coord_index, neighbor_site(bond, col), nothing)
+                                ni = get(coord_index, neighbor_fn(bond, col), nothing)
                                 if ni !== nothing
                                         adj_matrix[index, ni] = bond.bond_type
                                         adj_matrix[ni, index] = bond.bond_type
@@ -51,21 +58,21 @@ function _fill_adj_matrix!(adj_matrix, coordinates, coord_index, bonds, site_mat
         end
 end
 
-function generate_adj_matrix(coordinates::AbstractMatrix{Int}, unit_cell::UnitCell)
+function generate_adj_matrix(coordinates::AbstractMatrix{Int}, unit_cell::UnitCell; neighbor_fn=neighbor_site)
         coord_index = generate_coord_index(coordinates)
         adj_matrix = zeros(Int, size(coordinates, 2), size(coordinates, 2))
-        _fill_adj_matrix!(adj_matrix, coordinates, coord_index, unit_cell.bonds, (bond, col) -> bond.site1 == col[end])
+        _fill_adj_matrix!(adj_matrix, coordinates, coord_index, unit_cell.bonds, (bond, col) -> bond.site1 == col[end], neighbor_fn)
         adj_matrix
 end
 
-function generate_adj_matrix(coordinates::AbstractMatrix{Int}, unit_cell::ExpansionUnitCell)
+function generate_adj_matrix(coordinates::AbstractMatrix{Int}, unit_cell::ExpansionUnitCell; neighbor_fn=neighbor_site)
         coord_index = generate_coord_index(coordinates)
         adj_matrix = zeros(Int, size(coordinates, 2), size(coordinates, 2))
-        _fill_adj_matrix!(adj_matrix, coordinates, coord_index, unit_cell.bonds, (bond, col) -> bond.site1 == col[end-1:end])
+        _fill_adj_matrix!(adj_matrix, coordinates, coord_index, unit_cell.bonds, (bond, col) -> bond.site1 == col[end-1:end], neighbor_fn)
         adj_matrix
 end
 
-function generate_adj_matrix_weak(coordinates::AbstractMatrix{Int}, unit_cell::ExpansionUnitCell, unique_inds::Vector{Int})
+function generate_adj_matrix_weak(coordinates::AbstractMatrix{Int}, unit_cell::ExpansionUnitCell, unique_inds::Vector{Int}; neighbor_fn=neighbor_site)
         real_coords = shift_unit_cell(unit_cell, coordinates)[:, unique_inds]
         coord_index = generate_coord_index(real_coords)
         adj_matrix = zeros(Int, length(unique_inds), length(unique_inds))
@@ -74,7 +81,7 @@ function generate_adj_matrix_weak(coordinates::AbstractMatrix{Int}, unit_cell::E
                 isnothing(trans_ind) && continue
                 for bond in unit_cell.bonds
                         if bond.site1 == coord[end-1:end]
-                                neighbor_coord = neighbor_site(bond, coord)
+                                neighbor_coord = neighbor_fn(bond, coord)
                                 ni = get(coord_index, round.(shift_unit_cell(unit_cell, neighbor_coord), digits=6), nothing)
                                 if ni !== nothing
                                         adj_matrix[trans_ind, ni] = bond.bond_type
@@ -87,13 +94,13 @@ function generate_adj_matrix_weak(coordinates::AbstractMatrix{Int}, unit_cell::E
         adj_matrix
 end
 
-function _generate_neighbor_list(coordinates::AbstractMatrix{Int}, bonds, ::Type{V}) where {V<:AbstractVertices}
+function _generate_neighbor_list(coordinates::AbstractMatrix{Int}, bonds, ::Type{V}, neighbor_fn=neighbor_site) where {V<:AbstractVertices}
         coord_index = generate_coord_index(coordinates)
         neighbor_list = fill(V(), size(coordinates, 2))
         for (index, col) in enumerate(eachcol(coordinates))
                 for bond in bonds
                         if bond.site1 == col[end]
-                                neighbor_index = get(coord_index, neighbor_site(bond, col), nothing)
+                                neighbor_index = get(coord_index, neighbor_fn(bond, col), nothing)
                                 if neighbor_index !== nothing
                                         neighbor_list[index] = union(neighbor_list[index], V(neighbor_index))
                                         neighbor_list[neighbor_index] = union(neighbor_list[neighbor_index], V(index))
@@ -105,10 +112,10 @@ function _generate_neighbor_list(coordinates::AbstractMatrix{Int}, bonds, ::Type
         neighbor_list
 end
 
-generate_neighbor_list(coordinates::AbstractMatrix{Int}, unit_cell::UnitCell) =
-        _generate_neighbor_list(coordinates, unit_cell.bonds, LatticeVertices{Int})
-generate_neighbor_list(coordinates::AbstractMatrix{Int}, unit_cell::ExpansionUnitCell) =
-        _generate_neighbor_list(coordinates, unit_cell.expansion_bonds, ExpansionVertices{Int})
+generate_neighbor_list(coordinates::AbstractMatrix{Int}, unit_cell::UnitCell; neighbor_fn=neighbor_site) =
+        _generate_neighbor_list(coordinates, unit_cell.bonds, LatticeVertices{Int}, neighbor_fn)
+generate_neighbor_list(coordinates::AbstractMatrix{Int}, unit_cell::ExpansionUnitCell; neighbor_fn=neighbor_site) =
+        _generate_neighbor_list(coordinates, unit_cell.expansion_bonds, ExpansionVertices{Int}, neighbor_fn)
 
 find_centers(coordinates::AbstractMatrix{Int}) = findall(col -> all(==(0), col[1:end-1]), eachcol(coordinates))
 
@@ -124,7 +131,7 @@ function generate_strong_connections(expansion_coordinates::AbstractMatrix{Int},
 end
 
 # Source - https://stackoverflow.com/a/50900113
-# Posted by Bogumił Kamiński
+# Posted by Bogumil Kaminski
 # Retrieved 2026-04-02, License - CC BY-SA 4.0
 # Modified by adding a round function to deal
 # with floating point numbers

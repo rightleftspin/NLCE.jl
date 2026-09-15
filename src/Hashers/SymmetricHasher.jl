@@ -9,16 +9,15 @@ struct SymmetricHasher{C<:Union{<:AbstractConnections,Nothing},T<:TranslationHas
         connections::C
 end
 
-function SymmetricHasher(lattice::AbstractInfiniteLattice, lattice_symmetries::Vector{Matrix{Float64}}, connections::Union{<:AbstractConnections,Nothing})
+function SymmetricHasher(lattice::AbstractLattice, lattice_symmetries::Vector{Matrix{Float64}}, connections::Union{<:AbstractConnections,Nothing})
         trans_hasher = TranslationHasher(lattice)
         all_coords = get_coordinates(lattice)
         # `get_permutations` may produce incomplete permutations (entries set to 0)
-        # when a symmetry maps a boundary site outside the finite lattice cube.
+        # when a symmetry maps a boundary site outside the lattice's coordinate cube.
         # For infinite-lattice use this is safe: clusters are grown from the center
         # and never reach the corners, so no cluster site will land on a zero entry.
-        # For finite lattices the incomplete permutations must be filtered out before
-        # constructing this hasher, otherwise `perm[lattice_vertices]` below will index with 0.
         permutations = get_permutations(all_coords, lattice_symmetries)
+        _validate_finite_permutations(lattice, permutations)
 
         SymmetricHasher(
                 trans_hasher,
@@ -28,8 +27,19 @@ function SymmetricHasher(lattice::AbstractInfiniteLattice, lattice_symmetries::V
 
 end
 
-SymmetricHasher(lattice::AbstractInfiniteLattice, lattice_symmetries::Vector{Matrix{Float64}}) = SymmetricHasher(lattice, lattice_symmetries, nothing)
+_validate_finite_permutations(::AbstractLattice, ::Vector{Vector{Int64}}) = nothing
+function _validate_finite_permutations(::AbstractFiniteLattice, permutations::Vector{Vector{Int64}})
+        for perm in permutations
+                if any(iszero, perm)
+                        error("SymmetricHasher: a lattice point-group symmetry maps a site outside the finite lattice. Use a lattice whose shape is invariant under the given symmetries (e.g. a 4x4 grid for the square lattice).")
+                end
+        end
+        nothing
+end
+
+SymmetricHasher(lattice::AbstractLattice, lattice_symmetries::Vector{Matrix{Float64}}) = SymmetricHasher(lattice, lattice_symmetries, nothing)
 SymmetricHasher(lattice::AbstractClusterExpansionLattice, lattice_symmetries::Vector{Matrix{Float64}}) = SymmetricHasher(lattice, lattice_symmetries, connections(lattice))
+SymmetricHasher(lattice::AbstractFiniteClusterExpansionLattice, lattice_symmetries::Vector{Matrix{Float64}}) = SymmetricHasher(lattice, lattice_symmetries, connections(lattice))
 
 n_unique_sites(h::SymmetricHasher) = n_unique_sites(h.trans_hasher)
 

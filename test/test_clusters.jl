@@ -11,6 +11,17 @@
                 @test length(filter(c -> length(c) == 4, collect(clusters))) == 19
         end
 
+        @testset "Connected clustering (Square)" begin
+                lattice = SiteExpansionLattice(4, square_uc)
+                clusters = ConnectedClusterSet(lattice)
+                clusters_from_lattice!(clusters, lattice)
+
+                @test length(filter(c -> length(c) == 1, collect(clusters))) == 1
+                @test length(filter(c -> length(c) == 2, collect(clusters))) == 4
+                @test length(filter(c -> length(c) == 3, collect(clusters))) == 18
+                @test length(filter(c -> length(c) == 4, collect(clusters))) == 76
+        end
+
         @testset "Symmetric clustering (Square)" begin
                 lattice = SiteExpansionLattice(8, square_uc)
                 trans_clusters = TranslationClusterSet(lattice)

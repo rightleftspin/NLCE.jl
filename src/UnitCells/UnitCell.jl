@@ -12,6 +12,25 @@ end
 
 neighbor_site(bond::Bond, coordinate::AbstractVector{Int}) = [coordinate[1:end-1] + bond.direction; bond.site2]
 
+function pbc_neighbor_fn(dims::NTuple{N,Int}, periodic_dims::Vector{Bool}=fill(true, N)) where {N}
+        (bond, col) -> begin
+                spatial = col[1:N] .+ bond.direction
+                wrapped = [periodic_dims[i] ? mod(spatial[i], dims[i]) : spatial[i] for i in 1:N]
+                [wrapped; col[N+1:end-length(bond.site2)]; bond.site2]
+        end
+end
+
+function supercell_neighbor_fn(supercell_vecs::Matrix{Int})
+        S    = Float64.(supercell_vecs)
+        Sinv = inv(S)
+        N    = size(supercell_vecs, 1)
+        (bond, col) -> begin
+                spatial = col[1:N] .+ bond.direction
+                wrapped = S * mod.(Sinv * spatial, 1.0)
+                [round.(Int, wrapped); col[N+1:end-length(bond.site2)]; bond.site2]
+        end
+end
+
 """
     UnitCell(basis, primitive_vectors, bonds, site_colors)
 

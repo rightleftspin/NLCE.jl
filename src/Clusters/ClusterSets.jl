@@ -8,7 +8,7 @@ end
 
 ClusterSet constructor that initializes a ClusterSet with a hasher that preserves translational invariance
 """
-function TranslationClusterSet(lattice::AbstractInfiniteLattice)
+function TranslationClusterSet(lattice::AbstractLattice)
         C = Cluster{typeof(centers(lattice))}
         ClusterSet{C,TranslationHasher}(
                 Dict{UInt,C}(),
@@ -43,6 +43,19 @@ function SymmetricClusterSet(lattice::AbstractLattice, symmetries::Vector{Matrix
 end
 
 SymmetricClusterSet(lattice::AbstractLattice, lattice_type::Symbol) = SymmetricClusterSet(lattice, all_lattice_symmetries[lattice_type])
+
+"""
+    ConnectedClusterSet(lattice)
+
+ClusterSet constructor that initializes a ClusterSet with a hasher that treats each distinct set of vertices as unique.
+"""
+function ConnectedClusterSet(lattice::AbstractLattice)
+        C = Cluster{typeof(centers(lattice))}
+        ClusterSet{C,ConnectedHasher}(
+                Dict{UInt,C}(),
+                ConnectedHasher(lattice)
+        )
+end
 
 Base.length(cluster_set::ClusterSet) = length(cluster_set.clusters)
 Base.in(c::C, cluster_set::ClusterSet{C,H}) where {C<:AbstractCluster,H} = haskey(cluster_set.clusters, c.ghash)
